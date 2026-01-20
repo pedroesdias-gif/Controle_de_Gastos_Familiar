@@ -11,34 +11,29 @@ const COPYRIGHT_IMAGE_KEY = 'finances_2026_copyright_image';
 
 const defaultCategories: Category[] = [
   { id: '1', name: 'Salário', type: 'Receita' },
-  { id: '2', name: 'Aluguel', type: 'Despesa' },
-  { id: '3', name: 'Alimentação', type: 'Despesa' },
+  { id: '2', name: 'Alimentação', type: 'Despesa' },
+  { id: '3', name: 'Moradia', type: 'Despesa' },
   { id: '4', name: 'Transporte', type: 'Despesa' },
   { id: '5', name: 'Lazer', type: 'Despesa' },
+  { id: '6', name: 'Saúde', type: 'Despesa' },
+  { id: '7', name: 'Educação', type: 'Despesa' },
 ];
 
 const defaultPaymentMethods: PaymentMethod[] = [
   { id: 'pm1', name: 'Pix', type: 'Receita' },
   { id: 'pm2', name: 'Dinheiro', type: 'Receita' },
-  { id: 'pm3', name: 'Transferência', type: 'Receita' },
-  { id: 'pm4', name: 'Pix', type: 'Despesa' },
-  { id: 'pm5', name: 'Cartão de Crédito', type: 'Despesa' },
+  { id: 'pm3', name: 'Pix', type: 'Despesa' },
+  { id: 'pm4', name: 'Cartão de Crédito', type: 'Despesa' },
+  { id: 'pm5', name: 'Dinheiro', type: 'Despesa' },
   { id: 'pm6', name: 'Boleto', type: 'Despesa' },
-  { id: 'pm7', name: 'Dinheiro', type: 'Despesa' },
 ];
 
 const defaultBankAccounts: BankAccount[] = [
-  { id: 'ba1', name: 'Carteira (Dinheiro)', initialBalance: 0 },
+  { id: 'ba1', name: 'Carteira Principal', initialBalance: 0 },
 ];
 
-const defaultRecurringBills: RecurringBill[] = [
-  { id: 'rb1', name: 'Cartão de crédito C6', dueDay: 5, value: 0, group: 'Fixos', groupColor: '#cbd5e1', payments: {} },
-  { id: 'rb2', name: 'Santa Júlia móveis', dueDay: 5, value: 0, group: 'Fixos', groupColor: '#cbd5e1', payments: {} },
-  { id: 'rb3', name: 'Luz CPFL', dueDay: 15, value: 0, group: 'Apto RP Gui', groupColor: '#f59e0b', payments: {} },
-  { id: 'rb4', name: 'Condomínio', dueDay: 10, value: 0, group: 'Apto RP Gui', groupColor: '#f59e0b', payments: {} },
-  { id: 'rb5', name: 'Aluguel', dueDay: 10, value: 0, group: 'Apto RP Gui', groupColor: '#f59e0b', payments: {} },
-  { id: 'rb6', name: 'TIM Fibra - internet', dueDay: 5, value: 0, group: 'Casa FC 283', groupColor: '#10b981', payments: {} },
-];
+// Removendo contas fixas de exemplo para o novo usuário
+const defaultRecurringBills: RecurringBill[] = [];
 
 export const getCopyrightImage = (): string | null => {
   return localStorage.getItem(COPYRIGHT_IMAGE_KEY);
@@ -281,7 +276,6 @@ export const saveTransaction = (transaction: Transaction): void => {
   else transactions.push(transaction);
   localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions));
   
-  // Lógica de sincronização automática com a aba de Vencimentos
   if (transaction.type === 'Despesa') {
     const categories = getCategories();
     const cat = categories.find(c => c.id === transaction.categoryId);
@@ -292,7 +286,6 @@ export const saveTransaction = (transaction: Transaction): void => {
       let billsChanged = false;
 
       bills.forEach(bill => {
-        // Se o nome da categoria for o mesmo nome da conta recorrente
         if (bill.name.toLowerCase() === cat.name.toLowerCase()) {
           bill.payments[monthKey] = true;
           billsChanged = true;
@@ -329,8 +322,6 @@ export const getBankAccountSummaries = (): BankAccountSummary[] => {
 
   return accounts.map(account => {
     const accountTransactions = transactions.filter(t => t.bankAccountId === account.id);
-    
-    // Filtro para saldo confirmado: apenas o que já foi pago
     const confirmedIncome = accountTransactions
       .filter(t => t.type === 'Receita' && t.status === 'Pago')
       .reduce((acc, t) => acc + t.value, 0);
@@ -338,7 +329,6 @@ export const getBankAccountSummaries = (): BankAccountSummary[] => {
       .filter(t => t.type === 'Despesa' && t.status === 'Pago')
       .reduce((acc, t) => acc + t.value, 0);
 
-    // Filtro para saldo com previsão: ignora faturas que ainda estão como "Previsão"
     const totalIncome = accountTransactions
       .filter(t => t.type === 'Receita' && !(isAutoInvoice(t) && t.status === 'Previsão'))
       .reduce((acc, t) => acc + t.value, 0);
@@ -398,7 +388,6 @@ export const getCategorySummary = (month: number, year: number): CategorySummary
   const summaryMap: Record<string, { name: string; total: number; confirmed: number }> = {};
   
   transactions.forEach(t => {
-    // Relacionamos as despesas às suas categorias reais, independentemente de ser Cartão ou outra forma.
     const bucketId = t.categoryId;
     const bucketName = categories.find(c => c.id === t.categoryId)?.name || 'Outros';
 

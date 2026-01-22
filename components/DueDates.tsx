@@ -98,12 +98,21 @@ const DueDates: React.FC<DueDatesProps> = ({ selectedYear }) => {
     const isPaid = bill.payments[`${selectedYear}-${currentMonth}`];
     
     if (isPaid) return 'PAGO';
-    if (selectedYear < currentYear || (selectedYear === currentYear && today.getDate() > bill.dueDay)) return 'ATRASADO';
-    return 'VENCENDO HOJE';
+    
+    // Se o ano for anterior, tudo não pago está atrasado
+    if (selectedYear < currentYear) return 'ATRASADO';
+    // Se o ano for futuro, tudo não pago está "a vencer"
+    if (selectedYear > currentYear) return 'A VENCER';
+
+    // Ano atual: lógica baseada no dia e mês
+    const day = today.getDate();
+    if (bill.dueDay < day) return 'ATRASADO';
+    if (bill.dueDay === day) return 'VENCENDO HOJE';
+    return 'A VENCER';
   };
 
   const summary = useMemo(() => {
-    const stats = { 'PAGO': 0, 'ATRASADO': 0, 'VENCENDO HOJE': 0, 'TOTAL': bills.length };
+    const stats = { 'PAGO': 0, 'ATRASADO': 0, 'VENCENDO HOJE': 0, 'A VENCER': 0, 'TOTAL': bills.length };
     bills.forEach(b => stats[getStatus(b) as keyof typeof stats]++);
     return stats;
   }, [bills, selectedYear]);
@@ -113,6 +122,7 @@ const DueDates: React.FC<DueDatesProps> = ({ selectedYear }) => {
       { name: 'Pago', value: summary['PAGO'], color: '#10b981' },
       { name: 'Atrasado', value: summary['ATRASADO'], color: '#ef4444' },
       { name: 'Vencendo Hoje', value: summary['VENCENDO HOJE'], color: '#f59e0b' },
+      { name: 'A Vencer', value: summary['A VENCER'], color: '#3b82f6' },
     ].filter(item => item.value > 0);
   }, [summary]);
 
@@ -194,63 +204,68 @@ const DueDates: React.FC<DueDatesProps> = ({ selectedYear }) => {
               </tr>
             </thead>
             <tbody className="divide-y dark:divide-slate-800">
-              {bills.map(bill => (
-                <tr key={bill.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors group">
-                  <td className="px-4 py-4">
-                    <div className="font-bold text-gray-800 dark:text-slate-200">{bill.name}</div>
-                    {bill.group && (
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: bill.groupColor }}></span>
-                        <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: bill.groupColor }}>{bill.group}</span>
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-2 py-4 text-center font-black text-gray-400 dark:text-slate-600">{bill.dueDay}</td>
-                  <td className="px-4 py-4">
-                    <div className={`text-[10px] font-black text-center py-1.5 rounded-lg border uppercase tracking-widest ${
-                      getStatus(bill) === 'PAGO' 
-                        ? 'bg-emerald-500 text-white border-emerald-600' 
-                        : getStatus(bill) === 'ATRASADO'
-                        ? 'bg-red-500 text-white border-red-600 animate-pulse'
-                        : 'bg-amber-500 text-white border-amber-600 shadow-sm'
-                    }`}>
-                      {getStatus(bill)}
-                    </div>
-                  </td>
-                  {MONTHS_SHORT.map((_, i) => (
-                    <td key={i} className="px-1 py-4 text-center">
-                      <input 
-                        type="checkbox" 
-                        className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 dark:bg-slate-800 dark:border-slate-700 transition-all cursor-pointer"
-                        checked={!!bill.payments[`${selectedYear}-${i}`]} 
-                        onChange={() => handleToggle(bill.id, i)} 
-                      />
+              {bills.map(bill => {
+                const status = getStatus(bill);
+                return (
+                  <tr key={bill.id} className="hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors group">
+                    <td className="px-4 py-4">
+                      <div className="font-bold text-gray-800 dark:text-slate-200">{bill.name}</div>
+                      {bill.group && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: bill.groupColor }}></span>
+                          <span className="text-[10px] font-black uppercase tracking-widest" style={{ color: bill.groupColor }}>{bill.group}</span>
+                        </div>
+                      )}
                     </td>
-                  ))}
-                  <td className="px-4 py-4 text-right">
-                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        onClick={() => handleEdit(bill)}
-                        className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
-                        title="Editar Conta"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(bill.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                        title="Remover Conta"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    <td className="px-2 py-4 text-center font-black text-gray-400 dark:text-slate-600">{bill.dueDay}</td>
+                    <td className="px-4 py-4">
+                      <div className={`text-[10px] font-black text-center py-1.5 rounded-lg border uppercase tracking-widest ${
+                        status === 'PAGO' 
+                          ? 'bg-emerald-500 text-white border-emerald-600' 
+                          : status === 'ATRASADO'
+                          ? 'bg-red-500 text-white border-red-600 animate-pulse'
+                          : status === 'A VENCER'
+                          ? 'bg-blue-500 text-white border-blue-600 shadow-sm'
+                          : 'bg-amber-500 text-white border-amber-600 shadow-sm'
+                      }`}>
+                        {status}
+                      </div>
+                    </td>
+                    {MONTHS_SHORT.map((_, i) => (
+                      <td key={i} className="px-1 py-4 text-center">
+                        <input 
+                          type="checkbox" 
+                          className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 dark:bg-slate-800 dark:border-slate-700 transition-all cursor-pointer"
+                          checked={!!bill.payments[`${selectedYear}-${i}`]} 
+                          onChange={() => handleToggle(bill.id, i)} 
+                        />
+                      </td>
+                    ))}
+                    <td className="px-4 py-4 text-right">
+                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => handleEdit(bill)}
+                          className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
+                          title="Editar Conta"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(bill.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                          title="Remover Conta"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
               {bills.length === 0 && (
                 <tr>
                   <td colSpan={16} className="px-4 py-16 text-center text-gray-400 dark:text-slate-600 italic">Nenhuma conta recorrente cadastrada para este exercício.</td>
@@ -267,6 +282,10 @@ const DueDates: React.FC<DueDatesProps> = ({ selectedYear }) => {
           <div className="flex flex-col md:flex-row gap-8 items-center">
             {/* Estatísticas Numéricas */}
             <div className="flex-1 space-y-4 w-full">
+              <div className="flex justify-between items-center border-b dark:border-slate-800 pb-3">
+                <span className="text-[11px] font-black uppercase text-blue-600 dark:text-blue-500 tracking-wider">A Vencer</span>
+                <span className="text-base font-black text-blue-700 dark:text-blue-400">{summary['A VENCER']}</span>
+              </div>
               <div className="flex justify-between items-center border-b dark:border-slate-800 pb-3">
                 <span className="text-[11px] font-black uppercase text-amber-600 dark:text-amber-500 tracking-wider">Vencendo Hoje</span>
                 <span className="text-base font-black text-amber-700 dark:text-amber-400">{summary['VENCENDO HOJE']}</span>

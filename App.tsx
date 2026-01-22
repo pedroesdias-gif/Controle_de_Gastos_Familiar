@@ -18,7 +18,7 @@ import { RecurringBill } from './types';
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [billsDueToday, setBillsDueToday] = useState<RecurringBill[]>([]);
+  const [billsForAlert, setBillsForAlert] = useState<RecurringBill[]>([]);
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
@@ -29,15 +29,19 @@ const App: React.FC = () => {
       const day = today.getDate();
 
       const allBills = getRecurringBills();
-      const dueToday = allBills.filter(bill => {
-        const isToday = bill.dueDay === day;
-        // Verifica se está pago no exercício selecionado (ou no atual para o alerta)
+      // Filtra contas que vencem hoje OU que já venceram no mês atual e não foram pagas
+      const pendingBills = allBills.filter(bill => {
         const isPaid = bill.payments[`${year}-${month}`];
-        return isToday && !isPaid;
+        if (isPaid) return false;
+
+        const isToday = bill.dueDay === day;
+        const isOverdue = bill.dueDay < day;
+        
+        return isToday || isOverdue;
       });
 
-      if (dueToday.length > 0) {
-        setBillsDueToday(dueToday);
+      if (pendingBills.length > 0) {
+        setBillsForAlert(pendingBills);
         setShowModal(true);
       }
     };
@@ -87,7 +91,7 @@ const App: React.FC = () => {
 
       {showModal && (
         <VencimentosHojeModal 
-          bills={billsDueToday} 
+          bills={billsForAlert} 
           onClose={() => setShowModal(false)} 
         />
       )}

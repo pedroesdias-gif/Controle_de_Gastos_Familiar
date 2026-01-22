@@ -17,7 +17,9 @@ const COLORS = ['#10b981', '#4f46e5', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899'
 
 const CustomTreemapContent = (props: any) => {
   const { x, y, width, height, index, categoryName, percentage } = props;
-  if (width < 40 || height < 20 || percentage === undefined) return null;
+  
+  // Condição para não renderizar nada se o bloco for minúsculo
+  if (width < 30 || height < 20 || percentage === undefined) return null;
 
   return (
     <g>
@@ -29,33 +31,48 @@ const CustomTreemapContent = (props: any) => {
         style={{
           fill: COLORS[index % COLORS.length],
           stroke: '#fff',
-          strokeWidth: 2,
-          strokeOpacity: 1,
+          strokeWidth: 1,
+          strokeOpacity: 0.5,
         }}
       />
-      {width > 60 && height > 40 && categoryName && (
+      {/* Rótulo da Categoria - Com sombra/contorno para máxima nitidez */}
+      {width > 45 && height > 25 && categoryName && (
         <text
           x={x + width / 2}
-          y={y + height / 2}
+          y={y + height / 2 - (height > 45 ? 5 : 0)}
           textAnchor="middle"
           dominantBaseline="middle"
           fill="#fff"
-          fontSize={12}
-          fontWeight="bold"
-          className="pointer-events-none"
+          fontSize={width > 80 ? 13 : 11}
+          fontWeight="800"
+          className="pointer-events-none uppercase tracking-tighter"
+          style={{ 
+            textShadow: '0px 1px 2px rgba(0,0,0,0.4)',
+            paintOrder: 'stroke',
+            stroke: 'rgba(0,0,0,0.15)',
+            strokeWidth: '1px'
+          }}
         >
-          {categoryName}
+          {width > 60 ? categoryName : categoryName.substring(0, 3)}
         </text>
       )}
-      {width > 60 && height > 60 && percentage !== undefined && (
+      {/* Porcentagem - Aplicando a mesma nitidez dos rótulos */}
+      {width > 50 && height > 45 && percentage !== undefined && (
         <text
           x={x + width / 2}
-          y={y + height / 2 + 16}
+          y={y + height / 2 + 12}
           textAnchor="middle"
           dominantBaseline="middle"
           fill="#fff"
-          fontSize={10}
-          className="pointer-events-none opacity-90"
+          fontSize={width > 80 ? 11 : 10}
+          fontWeight="800"
+          className="pointer-events-none opacity-100"
+          style={{ 
+            textShadow: '0px 1px 2px rgba(0,0,0,0.4)',
+            paintOrder: 'stroke',
+            stroke: 'rgba(0,0,0,0.15)',
+            strokeWidth: '1px'
+          }}
         >
           {percentage.toFixed(1)}%
         </text>
@@ -180,8 +197,8 @@ const AccountReportItem: React.FC<{
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Input type="date" label="De" value={startDate} onChange={e => setStartDate(e.target.value)} />
-        <Input type="date" label="Até" value={endDate} onChange={e => setEndDate(e.target.value)} />
+        <Input type="date" label="De" value={startDate} onChange={setStartDate} />
+        <Input type="date" label="Até" value={endDate} onChange={setEndDate} />
         <Select 
           label="Categoria" 
           value={categoryFilter} 
@@ -467,8 +484,8 @@ const Reports: React.FC<ReportsProps> = ({ selectedYear }) => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <Select label="Filtrar Cartão" value={ccCardFilter} onChange={e => setCcCardFilter(e.target.value)} options={[{label: 'Todos os Cartões', value: 'all'}, ...creditCards.map(cc => ({label: cc.name, value: cc.id}))]} />
             <Select label="Categoria" value={ccCategoryFilter} onChange={e => setCcCategoryFilter(e.target.value)} options={[{label: 'Todas as Categorias', value: 'all'}, ...allCategories.map(c => ({label: c.name, value: c.id}))]} />
-            <Input label="Data Inicial" type="date" value={ccStartDate} onChange={e => setCcStartDate(e.target.value)} />
-            <Input label="Data Final" type="date" value={ccEndDate} onChange={e => setCcEndDate(e.target.value)} />
+            <Input label="Data Inicial" type="date" value={ccStartDate} onChange={setCcStartDate} />
+            <Input label="Data Final" type="date" value={ccEndDate} onChange={setCcEndDate} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -165,10 +165,16 @@ const Dashboard: React.FC<DashboardProps> = ({ selectedYear }) => {
   const getBillStatus = (bill: RecurringBill) => {
     const isPaid = bill.payments[`${selectedYear}-${currentMonth}`];
     if (isPaid) return 'PAGO';
-    if (selectedYear < today.getFullYear()) return 'ATRASADO';
-    if (selectedYear > today.getFullYear()) return 'A VENCER';
-    if (today.getDate() > bill.dueDay) return 'ATRASADO';
-    if (today.getDate() === bill.dueDay) return 'VENCENDO HOJE';
+    
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentDay = today.getDate();
+
+    if (selectedYear < currentYear) return 'ATRASADO';
+    if (selectedYear > currentYear) return 'A VENCER';
+
+    if (currentDay > bill.dueDay) return 'ATRASADO';
+    if (currentDay === bill.dueDay) return 'VENCENDO HOJE';
     return 'A VENCER';
   };
 
@@ -180,6 +186,15 @@ const Dashboard: React.FC<DashboardProps> = ({ selectedYear }) => {
     });
     return stats;
   }, [bills, selectedYear, currentMonth]);
+
+  const billChartData = useMemo(() => {
+    return [
+      { name: 'Pago', value: billStats['PAGO'], color: '#10b981' },
+      { name: 'Atrasado', value: billStats['ATRASADO'], color: '#ef4444' },
+      { name: 'Vencendo Hoje', value: billStats['VENCENDO HOJE'], color: '#f59e0b' },
+      { name: 'A Vencer', value: billStats['A VENCER'], color: '#3b82f6' },
+    ].filter(item => item.value > 0);
+  }, [billStats]);
 
   const totalBankBalance = useMemo(() => {
     return bankSummaries.reduce((acc, b) => ({
@@ -246,32 +261,70 @@ const Dashboard: React.FC<DashboardProps> = ({ selectedYear }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Coluna de Vencimentos e Cartão */}
+        {/* Coluna de Vencimentos - REPRODUZINDO O GRÁFICO DA GUIA VENCIMENTOS */}
         <div className="space-y-4">
           <h2 className="text-sm font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest">Controle de Vencimentos</h2>
           
-          <Card className="p-4 bg-white dark:bg-slate-900 shadow-sm border border-gray-100 dark:border-slate-800 flex items-center justify-between">
-            <div className="flex-1 space-y-2">
-              <div className="flex justify-between items-center border-b border-gray-50 dark:border-slate-800 pb-1">
-                <span className="text-[10px] font-black uppercase tracking-tight text-slate-500">A Vencer</span>
-                <span className="text-xs font-black text-slate-900 dark:text-slate-100">{billStats['A VENCER']}</span>
+          <Card className="p-6 bg-white dark:bg-slate-900 shadow-sm border border-gray-100 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row gap-6 items-center">
+              {/* Estatísticas Numéricas */}
+              <div className="flex-1 space-y-3 w-full">
+                <div className="flex justify-between items-center border-b border-gray-50 dark:border-slate-800 pb-2">
+                  <span className="text-[10px] font-black uppercase tracking-tight text-blue-600 dark:text-blue-500">A Vencer</span>
+                  <span className="text-xs font-black text-blue-700 dark:text-blue-400">{billStats['A VENCER']}</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-gray-50 dark:border-slate-800 pb-2">
+                  <span className="text-[10px] font-black uppercase tracking-tight text-red-500">Atrasado</span>
+                  <span className="text-xs font-black text-red-600 dark:text-red-500">{billStats['ATRASADO']}</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-gray-50 dark:border-slate-800 pb-2">
+                  <span className="text-[10px] font-black uppercase tracking-tight text-amber-500">Hoje</span>
+                  <span className="text-xs font-black text-amber-600 dark:text-amber-500">{billStats['VENCENDO HOJE']}</span>
+                </div>
+                <div className="flex justify-between items-center pb-1">
+                  <span className="text-[10px] font-black uppercase tracking-tight text-emerald-600">Pago</span>
+                  <span className="text-xs font-black text-emerald-700 dark:text-emerald-500">{billStats['PAGO']}</span>
+                </div>
               </div>
-              <div className="flex justify-between items-center border-b border-gray-50 dark:border-slate-800 pb-1">
-                <span className="text-[10px] font-black uppercase tracking-tight text-red-500">Atrasado</span>
-                <span className="text-xs font-black text-red-600 dark:text-red-500">{billStats['ATRASADO']}</span>
+
+              {/* Gráfico de Rosca */}
+              <div className="w-32 h-32 flex-shrink-0">
+                {billChartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={billChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={35}
+                        outerRadius={50}
+                        paddingAngle={4}
+                        dataKey="value"
+                        stroke="none"
+                      >
+                        {billChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: '#0f172a', color: '#fff', fontSize: '10px' }}
+                        itemStyle={{ color: '#fff' }}
+                        formatter={(v: number) => [v, 'Quantidade']}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center border-2 border-dashed border-gray-100 dark:border-slate-800 rounded-full">
+                    <span className="text-[8px] font-black text-gray-300 dark:text-slate-700 uppercase">Sem dados</span>
+                  </div>
+                )}
               </div>
-              <div className="flex justify-between items-center border-b border-gray-50 dark:border-slate-800 pb-1">
-                <span className="text-[10px] font-black uppercase tracking-tight text-amber-500">Vencendo Hoje</span>
-                <span className="text-xs font-black text-amber-600 dark:text-amber-500">{billStats['VENCENDO HOJE']}</span>
+
+              {/* Destaque do Total */}
+              <div className="bg-indigo-50/50 dark:bg-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center min-w-[100px] border border-indigo-100/50 dark:border-slate-700">
+                <span className="text-[8px] font-black text-indigo-400 dark:text-indigo-500 uppercase tracking-widest mb-1">Total</span>
+                <span className="text-4xl font-black text-indigo-900 dark:text-indigo-200 tracking-tighter">{billStats['TOTAL']}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black uppercase tracking-tight text-emerald-600">Pago</span>
-                <span className="text-xs font-black text-emerald-700 dark:text-emerald-500">{billStats['PAGO']}</span>
-              </div>
-            </div>
-            <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 flex flex-col items-center justify-center min-w-[120px] border border-slate-100 dark:border-slate-700 ml-4">
-              <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Total Geral</span>
-              <span className="text-4xl font-black text-slate-900 dark:text-slate-100 tracking-tighter">{billStats['TOTAL']}</span>
             </div>
           </Card>
 
@@ -330,14 +383,14 @@ const Dashboard: React.FC<DashboardProps> = ({ selectedYear }) => {
                 contentStyle={{ borderRadius: '16px', border: 'none', backgroundColor: '#0f172a', color: '#fff', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '12px' }} 
               />
               <Legend iconType="circle" wrapperStyle={{paddingTop: '20px', fontSize: '11px', fontWeight: 600}} />
-              <Bar dataKey="receitasConfirmadas" fill="#10b981" name="Receitas Pagas" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="despesasConfirmadas" fill="#ef4444" name="Despesas Pagas" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="receitasConfirmadas" fill="#10b981" name="Receitas" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="despesasConfirmadas" fill="#ef4444" name="Despesas" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </Card>
 
-      {/* GALERIA DE DESPESAS POR ORIGEM - A Solicitação do Usuário */}
+      {/* GALERIA DE DESPESAS POR ORIGEM */}
       <div className="space-y-4">
         <div className="flex items-center gap-2 border-l-4 border-indigo-500 pl-4 py-1">
           <h2 className="text-sm font-black text-gray-600 dark:text-slate-300 uppercase tracking-[0.2em]">Despesas por Categoria e Origem</h2>

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { formatCurrencyBR } from '../services/formatters';
 import { Card } from './UI';
 
@@ -15,6 +15,12 @@ const Calculator: React.FC<CalculatorProps> = ({ isOpen, onClose }) => {
   const [operator, setOperator] = useState<string | null>(null);
   const [waitingForOperand, setWaitingForOperand] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Dragging State
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartPos = useRef({ x: 0, y: 0 });
+  const initialPos = useRef({ x: 0, y: 0 });
 
   const clearAll = useCallback(() => {
     setDisplay('0');
@@ -88,7 +94,6 @@ const Calculator: React.FC<CalculatorProps> = ({ isOpen, onClose }) => {
   }, [display, prevValue, operator]);
 
   const copyResult = () => {
-    // Copia o valor formatado como moeda para facilitar o uso no app
     const formatted = formatCurrencyBR(parseFloat(display));
     navigator.clipboard.writeText(formatted);
     setCopied(true);
@@ -96,17 +101,55 @@ const Calculator: React.FC<CalculatorProps> = ({ isOpen, onClose }) => {
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
-    // Só fecha se clicar no fundo (overlay), não no Card
     if (e.target === e.currentTarget) {
       onClose();
     }
   };
 
-  // Keyboard Support
+  // Drag Handlers
+  const onMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+    setIsDragging(true);
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    dragStartPos.current = { x: clientX, y: clientY };
+    initialPos.current = { ...position };
+  };
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent | TouchEvent) => {
+      if (!isDragging) return;
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      
+      const dx = clientX - dragStartPos.current.x;
+      const dy = clientY - dragStartPos.current.y;
+      
+      setPosition({
+        x: initialPos.current.x + dx,
+        y: initialPos.current.y + dy
+      });
+    };
+
+    const onMouseUp = () => setIsDragging(false);
+
+    if (isDragging) {
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+      window.addEventListener('touchmove', onMouseMove);
+      window.addEventListener('touchend', onMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('touchmove', onMouseMove);
+      window.removeEventListener('touchend', onMouseUp);
+    };
+  }, [isDragging]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isOpen) return;
-      
       if (e.key >= '0' && e.key <= '9') handleNumber(e.key);
       if (e.key === '.') handleDecimal();
       if (e.key === '+') handleOperator('+');
@@ -120,7 +163,6 @@ const Calculator: React.FC<CalculatorProps> = ({ isOpen, onClose }) => {
         setDisplay(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, handleNumber, handleDecimal, handleOperator, handleEqual, clearAll, onClose]);
@@ -133,14 +175,24 @@ const Calculator: React.FC<CalculatorProps> = ({ isOpen, onClose }) => {
       onClick={handleBackdropClick}
     >
       <Card 
-        className="w-full max-w-[320px] bg-slate-900 border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in slide-in-from-bottom-10 duration-300"
+        className={`w-full max-w-[320px] bg-slate-900 border-slate-800 shadow-2xl overflow-hidden animate-in zoom-in slide-in-from-bottom-10 duration-300 touch-none pointer-events-auto ${isDragging ? 'opacity-90 ring-2 ring-indigo-500/50 scale-[1.02]' : ''}`}
+        style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header/Display */}
-        <div className="p-6 bg-slate-950/50">
+        {/* Header/Display - Drag Area */}
+        <div 
+          className="p-6 bg-slate-950/50 cursor-move" 
+          onMouseDown={onMouseDown}
+          onTouchStart={onMouseDown}
+        >
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Calculadora</span>
-            <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors p-1">✕</button>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Calculadora</span>
+              <div className="flex gap-0.5">
+                {[1, 2, 3].map(i => <div key={i} className="w-1 h-1 bg-slate-700 rounded-full"></div>)}
+              </div>
+            </div>
+            <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors p-1 pointer-events-auto">✕</button>
           </div>
           <div className="h-4 text-right text-xs font-bold text-slate-500 overflow-hidden truncate">
             {equation}
@@ -151,7 +203,7 @@ const Calculator: React.FC<CalculatorProps> = ({ isOpen, onClose }) => {
           <div className="flex justify-end mt-2">
             <button 
               onClick={copyResult}
-              className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full transition-all flex items-center gap-2 ${copied ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+              className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full transition-all flex items-center gap-2 pointer-events-auto ${copied ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
             >
               {copied ? '✓ Copiado!' : '📋 Copiar R$'}
             </button>
@@ -159,7 +211,7 @@ const Calculator: React.FC<CalculatorProps> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Keypad */}
-        <div className="p-4 grid grid-cols-4 gap-2 bg-slate-900">
+        <div className="p-4 grid grid-cols-4 gap-2 bg-slate-900 pointer-events-auto">
           <CalcButton label="C" onClick={clearAll} variant="danger" />
           <CalcButton label="÷" onClick={() => handleOperator('/')} variant="operator" />
           <CalcButton label="×" onClick={() => handleOperator('*')} variant="operator" />

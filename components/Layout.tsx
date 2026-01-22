@@ -1,6 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Calculator from './Calculator';
+import Calendar from './Calendar';
 
 export type Tab = 'dashboard' | 'transactions' | 'credit-card' | 'search' | 'bank-accounts' | 'categories' | 'payment-methods' | 'reports' | 'due-dates' | 'copyright';
 
@@ -17,6 +18,17 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, sele
     return document.documentElement.classList.contains('dark');
   });
   const [isCalcOpen, setIsCalcOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  // Floating Buttons Drag State
+  const [btnPos, setBtnPos] = useState(() => {
+    const saved = localStorage.getItem('finance_2026_fab_pos');
+    return saved ? JSON.parse(saved) : { x: 0, y: 0 };
+  });
+  const [isDraggingBtns, setIsDraggingBtns] = useState(false);
+  const dragStartPos = useRef({ x: 0, y: 0 });
+  const initialPos = useRef({ x: 0, y: 0 });
+  const hasMoved = useRef(false);
 
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
@@ -46,6 +58,65 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, sele
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
 
+  // Drag Handlers for Floating Buttons
+  const onMouseDownBtns = (e: React.MouseEvent | React.TouchEvent) => {
+    setIsDraggingBtns(true);
+    hasMoved.current = false;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    dragStartPos.current = { x: clientX, y: clientY };
+    initialPos.current = { ...btnPos };
+  };
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent | TouchEvent) => {
+      if (!isDraggingBtns) return;
+      
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      
+      const dx = clientX - dragStartPos.current.x;
+      const dy = clientY - dragStartPos.current.y;
+      
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        hasMoved.current = true;
+      }
+
+      const newPos = {
+        x: initialPos.current.x + dx,
+        y: initialPos.current.y + dy
+      };
+      setBtnPos(newPos);
+    };
+
+    const onMouseUp = () => {
+      if (isDraggingBtns) {
+        setIsDraggingBtns(false);
+        localStorage.setItem('finance_2026_fab_pos', JSON.stringify(btnPos));
+      }
+    };
+
+    if (isDraggingBtns) {
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+      window.addEventListener('touchmove', onMouseMove);
+      window.addEventListener('touchend', onMouseUp);
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('touchmove', onMouseMove);
+      window.removeEventListener('touchend', onMouseUp);
+    };
+  }, [isDraggingBtns, btnPos]);
+
+  const handleFabClick = (action: () => void) => {
+    if (!hasMoved.current) {
+      action();
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row transition-colors duration-300 dark:bg-slate-950">
       
@@ -74,7 +145,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, sele
           ))}
         </nav>
         <div className="mt-auto p-6 text-[10px] font-bold uppercase tracking-widest text-slate-600">
-          v1.9.0 - Desktop View
+          v2.0.0 - Premium Edition
         </div>
       </aside>
 
@@ -102,15 +173,12 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, sele
                 >
                   <span className={`${isTransactions && isActive ? 'text-lg' : 'text-xl'}`}>{item.icon}</span>
                   
-                  {/* Legenda/Hint: No mobile, apenas o ícone ou um label minúsculo. 
-                      Para Lançamentos, mostramos o texto para destaque conforme pedido. */}
                   {isTransactions && (
                     <span className={`text-[8px] font-black uppercase tracking-tight mt-0.5 ${isActive ? 'text-white' : 'text-indigo-600 dark:text-indigo-400'}`}>
                       Lançar
                     </span>
                   )}
                   
-                  {/* Hint (tooltip-like) para as outras abas no mobile */}
                   {!isTransactions && (
                     <span className={`absolute -bottom-1 opacity-0 group-active:opacity-100 text-[7px] font-black uppercase tracking-widest bg-slate-800 text-white px-1.5 py-0.5 rounded transition-opacity`}>
                       {item.label}
@@ -166,11 +234,28 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, sele
             {children}
           </div>
 
-          {/* Floating Calculator Trigger */}
-          <div className="fixed bottom-6 right-6 md:bottom-8 md:right-8 z-50 flex flex-col items-end gap-3 pointer-events-none">
+          {/* Floating Actions Panel - NOW DRAGGABLE */}
+          <div 
+            className={`fixed z-50 flex flex-col items-end gap-3 pointer-events-auto cursor-move select-none ${isDraggingBtns ? 'opacity-70 scale-105' : ''}`}
+            style={{ 
+              bottom: '1.5rem', 
+              right: '1.5rem',
+              transform: `translate(${btnPos.x}px, ${btnPos.y}px)`,
+              transition: isDraggingBtns ? 'none' : 'transform 0.1s ease-out'
+            }}
+            onMouseDown={onMouseDownBtns}
+            onTouchStart={onMouseDownBtns}
+          >
             <button
-              onClick={() => setIsCalcOpen(true)}
-              className="w-12 h-12 md:w-14 md:h-14 bg-slate-900 dark:bg-slate-700 text-white rounded-full shadow-2xl flex items-center justify-center text-xl md:text-2xl hover:bg-slate-800 dark:hover:bg-slate-600 transition-all active:scale-90 pointer-events-auto border border-white/10"
+              onClick={() => handleFabClick(() => setIsCalendarOpen(true))}
+              className="w-12 h-12 md:w-14 md:h-14 bg-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center text-xl md:text-2xl hover:bg-indigo-700 transition-all active:scale-90 border border-white/20"
+              title="Abrir Calendário"
+            >
+              📅
+            </button>
+            <button
+              onClick={() => handleFabClick(() => setIsCalcOpen(true))}
+              className="w-12 h-12 md:w-14 md:h-14 bg-slate-900 dark:bg-slate-700 text-white rounded-full shadow-2xl flex items-center justify-center text-xl md:text-2xl hover:bg-slate-800 dark:hover:bg-slate-600 transition-all active:scale-90 border border-white/10"
               title="Abrir Calculadora"
             >
               🧮
@@ -180,6 +265,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, sele
       </div>
 
       <Calculator isOpen={isCalcOpen} onClose={() => setIsCalcOpen(false)} />
+      <Calendar isOpen={isCalendarOpen} onClose={() => setIsCalendarOpen(false)} />
     </div>
   );
 };

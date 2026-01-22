@@ -32,7 +32,6 @@ const defaultBankAccounts: BankAccount[] = [
   { id: 'ba1', name: 'Carteira Principal', initialBalance: 0 },
 ];
 
-// Removendo contas fixas de exemplo para o novo usuário
 const defaultRecurringBills: RecurringBill[] = [];
 
 export const getCopyrightImage = (): string | null => {
@@ -149,10 +148,10 @@ export const syncInvoiceTransaction = (cardId: string, month: number, year: numb
                      categories.find(c => c.type === 'Despesa') || 
                      { id: '1' };
 
-  const invoiceDate = new Date(year, month, 5).toISOString().split('T')[0];
+  const invoiceDate = `${year}-${String(month + 1).padStart(2, '0')}-05`;
 
   const invoiceTx: Transaction = {
-    id: existingIndex >= 0 ? transactions[existingIndex].id : `invoice-${Date.now()}`,
+    id: existingIndex >= 0 ? transactions[existingIndex].id : `invoice-${Date.now()}-${cardId}-${month}`,
     date: invoiceDate,
     description: `Fatura: ${card.name} (${new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(new Date(year, month, 1))})`,
     categoryId: defaultCat.id,
@@ -180,8 +179,9 @@ export const syncAllLinkedInvoices = () => {
   if (linkedCards.length === 0) return;
 
   const now = new Date();
+  // Sincroniza um range de meses para cobrir parcelamentos futuros
   for (const card of linkedCards) {
-    for (let i = 0; i < 12; i++) {
+    for (let i = -1; i < 24; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       syncInvoiceTransaction(card.id, d.getMonth(), d.getFullYear());
     }
@@ -304,15 +304,57 @@ export const saveTransaction = (transaction: Transaction): void => {
   }
 };
 
-export const deleteTransaction = (id: string): void => {
+export const deleteTransaction = (id: string, deleteAllNext: boolean = false): void => {
   const transactions = getTransactions();
   const tToDelete = transactions.find(t => t.id === id);
-  const newTransactions = transactions.filter(t => t.id !== id);
+  if (!tToDelete) return;
+
+  let newTransactions: Transaction[];
+  
+  if (deleteAllNext && tToDelete.groupId && tToDelete.installmentIndex !== undefined) {
+    // Remove esta e todas as parcelas superiores do mesmo grupo
+    newTransactions = transactions.filter(t => 
+      !(t.groupId === tToDelete.groupId && (t.installmentIndex || 0) >= (tToDelete.installmentIndex || 0))
+    );
+  } else {
+    // Remove apenas a específica
+    newTransactions = transactions.filter(t => t.id !== id);
+  }
+  
+  // Salva imediatamente para garantir persistência
   localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(newTransactions));
   
-  if (tToDelete && isCreditCardPM(tToDelete.paymentMethodId)) {
-    const effDate = getEffectiveDate(tToDelete);
-    syncInvoiceTransaction(tToDelete.paymentMethodId, effDate.getMonth(), effDate.getFullYear());
+  // Atualizar status de contas fixas (recorrentes)
+  if (tToDelete.type === 'Despesa') {
+    const categories = getCategories();
+    const cat = categories.find(c => c.id === tToDelete.categoryId);
+    if (cat) {
+      const date = new Date(tToDelete.date + 'T00:00:00');
+      const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+      
+      // Verifica se ainda existe outra despesa desta categoria neste mês nos dados ATUALIZADOS
+      const remains = newTransactions.some(t => {
+        const d = new Date(t.date + 'T00:00:00');
+        return t.categoryId === tToDelete.categoryId && 
+               d.getFullYear() === date.getFullYear() && 
+               d.getMonth() === date.getMonth() &&
+               !isAutoInvoice(t);
+      });
+
+      if (!remains) {
+        const bills = getRecurringBills();
+        const billIndex = bills.findIndex(b => b.name.toLowerCase() === cat.name.toLowerCase());
+        if (billIndex >= 0) {
+          bills[billIndex].payments[monthKey] = false;
+          localStorage.setItem(RECURRING_BILLS_KEY, JSON.stringify(bills));
+        }
+      }
+    }
+  }
+
+  // Sincronizar faturas de cartão se necessário
+  if (isCreditCardPM(tToDelete.paymentMethodId)) {
+    syncAllLinkedInvoices();
   }
 };
 

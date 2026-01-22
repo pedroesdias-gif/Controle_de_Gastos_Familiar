@@ -223,7 +223,7 @@ const Transactions: React.FC<TransactionsProps> = ({ globalYear }) => {
     setEditingTransaction(null);
     setFormType(t.type);
     setFormData({
-      date: t.date,
+      date: new Date().toISOString().split('T')[0], // Alterado para data atual ao duplicar
       description: `${t.description} (Cópia)`,
       categoryId: t.categoryId,
       bankAccountId: t.bankAccountId,

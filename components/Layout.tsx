@@ -13,6 +13,58 @@ interface LayoutProps {
   setSelectedYear: (year: number) => void;
 }
 
+const DollarTicker: React.FC = () => {
+  const [rate, setRate] = useState<{ bid: string; pctChange: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchRate = async () => {
+    try {
+      const response = await fetch('https://economia.awesomeapi.com.br/last/USD-BRL');
+      const data = await response.json();
+      if (data.USDBRL) {
+        setRate({
+          bid: parseFloat(data.USDBRL.bid).toFixed(2),
+          pctChange: data.USDBRL.pctChange
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao buscar cotação:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRate();
+    const interval = setInterval(fetchRate, 600000); // Atualiza a cada 10 min
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) return <div className="animate-pulse bg-gray-100 dark:bg-slate-800 h-6 w-20 rounded-lg"></div>;
+  if (!rate) return null;
+
+  const isUp = parseFloat(rate.pctChange) > 0;
+
+  return (
+    <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 px-3 py-1.5 rounded-xl border border-gray-100 dark:border-slate-800 shadow-sm transition-all hover:border-indigo-200 dark:hover:border-indigo-900/50 group">
+      <div className="flex items-center justify-center w-5 h-5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full text-[10px] font-black">
+        $
+      </div>
+      <div className="flex flex-col">
+        <span className="text-[10px] font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest leading-none mb-0.5">Dólar</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-black text-gray-900 dark:text-white font-mono tracking-tighter">
+            R$ {rate.bid.replace('.', ',')}
+          </span>
+          <span className={`text-[8px] font-black px-1 rounded-sm ${isUp ? 'text-red-500 bg-red-50 dark:bg-red-900/20' : 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'}`}>
+            {isUp ? '▲' : '▼'} {Math.abs(parseFloat(rate.pctChange))}%
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, selectedYear, setSelectedYear }) => {
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return document.documentElement.classList.contains('dark');
@@ -145,7 +197,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, sele
           ))}
         </nav>
         <div className="mt-auto p-6 text-[10px] font-bold uppercase tracking-widest text-slate-600">
-          v2.0.0 - Premium Edition
+          v2.1.0 - Premium Edition
         </div>
       </aside>
 
@@ -196,7 +248,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, sele
 
         {/* Global Top Bar (Shared, but adaptive) */}
         <header className="h-14 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 sticky top-[60px] md:top-0 z-10 transition-colors shadow-sm md:shadow-none">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 md:gap-6">
             <select 
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
@@ -206,6 +258,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, sele
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
+
+            <DollarTicker />
           </div>
           
           <div className="flex items-center gap-4">

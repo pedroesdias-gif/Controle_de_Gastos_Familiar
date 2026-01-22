@@ -247,8 +247,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, sele
         </nav>
 
         {/* Global Top Bar (Shared, but adaptive) */}
-        <header className="h-14 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 sticky top-[60px] md:top-0 z-10 transition-colors shadow-sm md:shadow-none">
-          <div className="flex items-center gap-3 md:gap-6">
+        <header className="relative h-14 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between px-4 md:px-8 sticky top-[60px] md:top-0 z-10 transition-colors shadow-sm md:shadow-none">
+          <div className="flex items-center gap-3 md:gap-6 z-10">
             <select 
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
@@ -261,8 +261,15 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, sele
 
             <DollarTicker />
           </div>
+
+          {/* Título Centralizado em Destaque */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full text-center pointer-events-none px-4">
+            <h1 className="text-[10px] sm:text-sm md:text-lg lg:text-xl font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.15em] sm:tracking-[0.25em] whitespace-nowrap drop-shadow-sm">
+              Controle de Gastos Familiar
+            </h1>
+          </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 z-10">
             <button 
               onClick={toggleDarkMode}
               className="p-1.5 rounded-lg bg-gray-50 dark:bg-slate-800 text-gray-400 dark:text-amber-400 hover:bg-gray-100 transition-all border border-gray-200 dark:border-slate-700"

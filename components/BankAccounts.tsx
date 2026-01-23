@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { BankAccount, BankAccountSummary } from '../types';
-import { getBankAccountSummaries, saveBankAccount, deleteBankAccount } from '../services/storageService';
+import { getBankAccountSummaries, saveBankAccount, deleteBankAccount, exportSystemDataToCSV } from '../services/storageService';
 import { formatCurrencyBR } from '../services/formatters';
 import { Button, Input, CurrencyInput, Card } from './UI';
 
@@ -184,6 +184,35 @@ const BankAccounts: React.FC = () => {
             </div>
           </Card>
         ))}
+      </div>
+
+      {/* Seção de Backup do Sistema */}
+      <div className="pt-10">
+        <div className="border-l-4 border-indigo-600 pl-4 mb-4">
+          <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Exportação de Dados</h2>
+          <p className="text-sm text-gray-500 dark:text-slate-400">Exporte todas as informações do seu controle financeiro para um arquivo seguro.</p>
+        </div>
+        
+        <Card className="p-8 bg-white dark:bg-slate-900 border-indigo-50 dark:border-slate-800 flex flex-col md:flex-row items-center gap-8">
+          <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl flex items-center justify-center text-3xl shrink-0">
+            📦
+          </div>
+          <div className="flex-1 text-center md:text-left">
+            <h3 className="font-bold text-gray-800 dark:text-slate-100">Cópia de Segurança</h3>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Gere um arquivo CSV contendo todas as suas transações, contas, categorias e configurações. Recomenda-se realizar este procedimento periodicamente para garantir a segurança dos seus dados.</p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            <Button 
+              onClick={exportSystemDataToCSV}
+              className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2 justify-center py-3 px-8"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Exportar Tudo (.csv)
+            </Button>
+          </div>
+        </Card>
       </div>
     </div>
   );

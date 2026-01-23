@@ -101,7 +101,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab, sele
     { id: 'search', label: 'Pesquisar', icon: '🔍' },
     { id: 'bank-accounts', label: 'Contas', icon: '🏦' },
     { id: 'categories', label: 'Categorias', icon: '🏷️' },
-    { id: 'payment-methods', label: 'Pgto', icon: '💳' },
+    { id: 'payment-methods', label: 'Forma de Pagamento', icon: '💳' },
     { id: 'reports', label: 'Relatórios', icon: '📈' },
     { id: 'due-dates', label: 'Vencimentos', icon: '📅' },
     { id: 'copyright', label: 'Copyright', icon: '©️' },

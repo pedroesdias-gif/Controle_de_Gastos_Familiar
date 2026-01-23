@@ -9,6 +9,16 @@ const CC_CLOSING_DAYS_KEY = 'finances_2026_cc_closing_days';
 const RECURRING_BILLS_KEY = 'finances_2026_recurring_bills';
 const COPYRIGHT_IMAGE_KEY = 'finances_2026_copyright_image';
 
+const ALL_KEYS = [
+  CATEGORIES_KEY,
+  TRANSACTIONS_KEY,
+  PAYMENT_METHODS_KEY,
+  BANK_ACCOUNTS_KEY,
+  CC_CLOSING_DAYS_KEY,
+  RECURRING_BILLS_KEY,
+  COPYRIGHT_IMAGE_KEY
+];
+
 const defaultCategories: Category[] = [
   { id: '1', name: 'Salário', type: 'Receita' },
   { id: '2', name: 'Alimentação', type: 'Despesa' },
@@ -33,6 +43,88 @@ const defaultBankAccounts: BankAccount[] = [
 ];
 
 const defaultRecurringBills: RecurringBill[] = [];
+
+// Funções de Exportação e Importação CSV
+export const exportSystemDataToCSV = (): void => {
+  try {
+    const dataRows = ['Key;Value'];
+    
+    ALL_KEYS.forEach(key => {
+      const value = localStorage.getItem(key);
+      if (value) {
+        // Envolvemos o JSON em aspas e dobramos aspas internas para CSV seguro
+        const safeValue = `"${value.replace(/"/g, '""')}"`;
+        dataRows.push(`${key};${safeValue}`);
+      }
+    });
+
+    const csvContent = "\ufeff" + dataRows.join('\n'); // BOM para Excel
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 16).replace('T', '_');
+    const fileName = `Controle_de_Gastos_Familiar_${timestamp}.csv`;
+    
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (error) {
+    console.error('Erro na exportação:', error);
+    alert('Erro ao exportar dados.');
+  }
+};
+
+export const importSystemDataFromCSV = (file: File): Promise<boolean> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const lines = text.split('\n');
+        
+        // Validação básica de cabeçalho
+        if (!lines[0].includes('Key;Value')) {
+          alert('Arquivo CSV inválido ou corrompido.');
+          return resolve(false);
+        }
+
+        // Limpa chaves atuais para evitar conflitos se desejar uma restauração limpa
+        // Ou apenas sobrescreve as que encontrar no arquivo
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+
+          const separatorIndex = line.indexOf(';');
+          if (separatorIndex === -1) continue;
+
+          const key = line.slice(0, separatorIndex);
+          let value = line.slice(separatorIndex + 1);
+
+          // Remove aspas de escape do CSV
+          if (value.startsWith('"') && value.endsWith('"')) {
+            value = value.slice(1, -1).replace(/""/g, '"');
+          }
+
+          if (ALL_KEYS.includes(key)) {
+            localStorage.setItem(key, value);
+          }
+        }
+        
+        resolve(true);
+      } catch (error) {
+        console.error('Erro na importação:', error);
+        alert('Erro ao processar o arquivo CSV.');
+        resolve(false);
+      }
+    };
+    reader.readAsText(file);
+  });
+};
 
 export const getCopyrightImage = (): string | null => {
   return localStorage.getItem(COPYRIGHT_IMAGE_KEY);
